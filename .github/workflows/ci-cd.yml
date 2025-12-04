@@ -5,6 +5,11 @@ on:
   pull_request:
     branches: [master, dev, test]
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
 jobs:
   # 1. Code Quality & Unit Tests (Feature -> dev)
   quality-checks:
@@ -58,11 +63,11 @@ jobs:
           # Run training (will use synthetic data in CI)
           python models/train.py
           
-          # Generate CML Report
+          # Generate CML Report (optional - may fail on push without PR)
           echo "## Model Metrics" > report.md
           cat metrics.txt >> report.md || echo "Metrics not found" >> report.md
           
-          cml comment create report.md
+          cml comment create report.md || echo "CML comment skipped (no PR context)"
 
   # 3. Production Deployment (test -> master)
   deploy:
