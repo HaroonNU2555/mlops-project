@@ -51,7 +51,7 @@ with DAG(
     # We need to set the working directory to the project root where .dvc exists
     dvc_push_task = BashOperator(
         task_id='dvc_push',
-        bash_command='cd /opt/airflow/project && dvc remote modify minio endpointurl http://minio:9000 --local && dvc add airflow/dags/data/processed && dvc push',
+        bash_command='cd /opt/airflow/project && dvc remote add -f origin https://dagshub.com/HaroonNU2555/mlops-project.dvc && dvc remote modify origin --local auth basic && dvc remote modify origin --local user $MLFLOW_TRACKING_USERNAME && dvc remote modify origin --local password $MLFLOW_TRACKING_PASSWORD && dvc add airflow/dags/data/processed && dvc push -r origin',
     )
 
     # Model Retraining Task

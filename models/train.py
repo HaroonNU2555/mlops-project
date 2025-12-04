@@ -10,7 +10,7 @@ import glob
 
 # Constants
 PROCESSED_DATA_PATH = "/opt/airflow/dags/data/processed" # Path inside Docker container
-MLFLOW_TRACKING_URI = "http://mlflow:5000"
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 def load_data():
     # Find all processed files

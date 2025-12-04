@@ -32,10 +32,9 @@ jobs:
           echo "def test_dummy(): assert True" > tests/test_dummy.py
           pytest
 
-  # 2. Model Training & Validation (dev -> test)
+  # 2. Model Training & Validation
   model-training:
     needs: quality-checks
-    if: github.ref == 'refs/heads/test' || github.base_ref == 'test'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

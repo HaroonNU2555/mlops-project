@@ -9,7 +9,7 @@ from ydata_profiling import ProfileReport
 # Constants
 RAW_DATA_DIR = "/opt/airflow/dags/data/raw"
 PROCESSED_DATA_DIR = "/opt/airflow/dags/data/processed"
-MLFLOW_TRACKING_URI = "http://mlflow:5000"
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 def transform_data():
     # Find latest file
