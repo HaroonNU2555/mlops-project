@@ -1,0 +1,73 @@
+[
+  [
+    [
+      "Domain",
+      "Example Free APIs",
+      "Predictive Task (Goal)"
+    ],
+    [
+      "Financial",
+      "Alpha Vantage, Twelve Data",
+      "Stock/Crypto Volatility: Predict the short-term volatility or closing price for a specific asset (e.g., next hour)."
+    ],
+    [
+      "Environmental",
+      "OpenWeatherMap",
+      "Localized Forecasting: Predict a key weather variable (e.g., temperature, wind speed) for a city 4-6 hours out."
+    ],
+    [
+      "Logistics",
+      "Public Transit Data",
+      "ETA/Delay: Predict the delay or arrival time of a specific transit vehicle at a future stop."
+    ]
+  ],
+  [
+    [
+      "Merge Event",
+      "CI Action",
+      "CML Integration"
+    ],
+    [
+      "Feature $\\rightarrow$ dev",
+      "Run Code Quality Checks (Linting) and Unit Tests.",
+      "N/A"
+    ],
+    [
+      "dev $\\rightarrow$ test",
+      "Model Retraining Test: Trigger the Airflow DAG to run a full data and model training pipeline.",
+      "Use CML to automatically generate and post a metric comparison report in the Pull Request comments, comparing the newly trained model's performance against the existing production model in master. The merge should be blocked if the new model performs worse."
+    ],
+    [
+      "test $\\rightarrow$ master",
+      "Full Production Deployment Pipeline.",
+      "N/A"
+    ]
+  ],
+  [
+    [
+      "Category",
+      "Tools",
+      "Purpose in this Project"
+    ],
+    [
+      "Orchestration",
+      "Airflow",
+      "Schedule and automate the entire ETL $\\rightarrow$ Training workflow."
+    ],
+    [
+      "Data/Model Mgmt",
+      "DVC, MLflow, Dagshub",
+      "Version data, track experiments, and centralize code, data, and models."
+    ],
+    [
+      "CI/CD",
+      "GitHub Actions, CML, Docker",
+      "Automate testing, model comparison, image building, and deployment."
+    ],
+    [
+      "Monitoring",
+      "Prometheus, Grafana",
+      "Collect service/model metrics, visualize performance, and alert on drift/latency."
+    ]
+  ]
+]

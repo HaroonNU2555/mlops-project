@@ -1,0 +1,50 @@
+# Airflow
+airflow/logs/
+airflow/*.pid
+airflow/*.err
+airflow/*.log
+airflow/airflow-webserver.pid
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+
+# DVC
+.dvc/tmp/
+.dvc/cache/
+
+# Project specific
+tmp/
+data/raw/
+data/processed/
