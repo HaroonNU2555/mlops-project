@@ -39,14 +39,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: iterative/setup-cml@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
       - name: Train Model
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: ./mlruns  # Use local tracking in CI
+          CI: true
         run: |
           # Install requirements
           pip install -r requirements.txt
           
-          # Run training (Mocking data availability for CI)
+          # Create data directory for synthetic data
+          mkdir -p /opt/airflow/dags/data/processed || true
+          
+          # Run training (will use synthetic data in CI)
           python models/train.py
           
           # Generate CML Report

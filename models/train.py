@@ -11,6 +11,7 @@ import glob
 # Constants
 PROCESSED_DATA_PATH = "/opt/airflow/dags/data/processed" # Path inside Docker container
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+CI_ENVIRONMENT = os.getenv("CI", "false").lower() == "true"  # Detect GitHub Actions
 
 def load_data():
     # Find all processed files
@@ -91,13 +92,26 @@ def train_model():
         mlflow.log_metric("mae", mae)
         mlflow.log_metric("r2", r2)
         
-        # Log model and register it
-        mlflow.sklearn.log_model(
-            sk_model=model, 
-            artifact_path="model",
-            registered_model_name="Production"
-        )
-        print("Model trained, logged, and registered to MLflow")
+        # Log model - skip registration in CI environment
+        if CI_ENVIRONMENT:
+            print("CI environment detected - skipping model registration")
+            mlflow.sklearn.log_model(
+                sk_model=model, 
+                artifact_path="model"
+            )
+        else:
+            mlflow.sklearn.log_model(
+                sk_model=model, 
+                artifact_path="model",
+                registered_model_name="Production"
+            )
+        print("Model trained and logged to MLflow")
+        
+        # Save metrics to file for CI reporting
+        with open("metrics.txt", "w") as f:
+            f.write(f"RMSE: {rmse}\n")
+            f.write(f"MAE: {mae}\n")
+            f.write(f"R2: {r2}\n")
 
 if __name__ == "__main__":
     train_model()
