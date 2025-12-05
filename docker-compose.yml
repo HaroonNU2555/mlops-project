@@ -150,8 +150,11 @@ services:
     image: grafana/grafana
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_ALERTING_ENABLED=false
     ports:
       - "3000:3000"
     depends_on:
@@ -172,3 +175,4 @@ services:
 volumes:
   postgres-db-volume:
   minio_data:
+  grafana_data:

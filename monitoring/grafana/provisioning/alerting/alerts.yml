@@ -1,0 +1,107 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: MLOps Alerts
+    folder: Alerts
+    interval: 1m
+    rules:
+      # Alert: High Inference Latency (> 500ms)
+      - uid: high_latency_alert
+        title: High Inference Latency
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: histogram_quantile(0.95, rate(prediction_latency_seconds_bucket[5m])) > 0.5
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "Inference latency is too high"
+          description: "The 95th percentile latency has exceeded 500ms for more than 2 minutes"
+        labels:
+          severity: warning
+          service: weather-prediction-api
+        isPaused: false
+
+      # Alert: Data Drift Spike (OOD ratio > 50%)
+      - uid: data_drift_alert
+        title: Data Drift Detected
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: out_of_distribution_ratio > 0.5
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Data drift detected"
+          description: "More than 50% of recent predictions contain out-of-distribution feature values"
+        labels:
+          severity: critical
+          service: weather-prediction-api
+        isPaused: false
+
+      # Alert: High Error Rate
+      - uid: high_error_rate
+        title: High Prediction Error Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: rate(prediction_errors_total[5m]) / rate(predictions_total[5m]) > 0.1
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "High prediction error rate"
+          description: "More than 10% of predictions are failing"
+        labels:
+          severity: critical
+          service: weather-prediction-api
+        isPaused: false
+
+# Contact points for alerts
+contactPoints:
+  - orgId: 1
+    name: File Logger
+    receivers:
+      - uid: file_logger
+        type: webhook
+        settings:
+          url: http://localhost:9999/alert
+        disableResolveMessage: false
+
+# Notification policies
+policies:
+  - orgId: 1
+    receiver: File Logger
+    group_by:
+      - alertname
+      - service
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
