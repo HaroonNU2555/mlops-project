@@ -10,6 +10,9 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/weather-prediction-api
+
 jobs:
   # =============================================================
   # 1. CODE QUALITY CHECKS (Feature -> dev)
@@ -55,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch all history for comparison
+          fetch-depth: 0
       
       - uses: iterative/setup-cml@v1
       
@@ -69,7 +72,6 @@ jobs:
         
       - name: Fetch production metrics from master
         run: |
-          # Try to get baseline metrics from master branch
           git show origin/master:metrics.txt > baseline_metrics.txt 2>/dev/null || echo "No baseline metrics found" > baseline_metrics.txt
           cat baseline_metrics.txt
           
@@ -78,7 +80,6 @@ jobs:
           MLFLOW_TRACKING_URI: ./mlruns
           CI: true
         run: |
-          # Run model training (uses synthetic data in CI)
           python models/train.py
           echo "New model trained successfully"
           
@@ -86,7 +87,6 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Generate comparison report
           echo "# 🤖 Model Training Report" > report.md
           echo "" >> report.md
           echo "## 📊 New Model Metrics" >> report.md
@@ -101,7 +101,6 @@ jobs:
           echo '```' >> report.md
           echo "" >> report.md
           
-          # Extract metrics for comparison
           NEW_RMSE=$(grep "RMSE" metrics.txt | awk '{print $2}' || echo "999")
           BASELINE_RMSE=$(grep "RMSE" baseline_metrics.txt | awk '{print $2}' || echo "999")
           
@@ -110,7 +109,6 @@ jobs:
           echo "| Metric | New Model | Production | Status |" >> report.md
           echo "|--------|-----------|------------|--------|" >> report.md
           
-          # Compare RMSE (lower is better)
           if [ "$BASELINE_RMSE" = "999" ] || [ "$BASELINE_RMSE" = "No" ]; then
             echo "| RMSE | $NEW_RMSE | N/A | 🆕 First model |" >> report.md
             echo "" >> report.md
@@ -125,7 +123,6 @@ jobs:
               echo "| RMSE | $NEW_RMSE | $BASELINE_RMSE | ❌ Worse |" >> report.md
               echo "" >> report.md
               echo "❌ **New model performs WORSE than production - DO NOT MERGE**" >> report.md
-              # Fail the job to block the merge
               exit 1
             fi
           fi
@@ -144,14 +141,29 @@ jobs:
 
   # =============================================================
   # 3. PRODUCTION DEPLOYMENT (test -> master)
-  # Full deployment pipeline - builds and pushes Docker image
+  # Full deployment pipeline with:
+  # - Semantic version tagging
+  # - Docker build and push
+  # - Deployment verification with health check
   # =============================================================
   deploy:
     needs: quality-checks
     if: github.base_ref == 'master' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Generate Version Tag
+        id: version
+        run: |
+          # Generate semantic version based on date and run number
+          VERSION="v1.$(date +'%Y%m%d').${{ github.run_number }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
       
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -159,12 +171,73 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
-      - name: Build and Push Docker image
+      - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/rps-api:latest ./api
-          docker push ${{ secrets.DOCKER_USERNAME }}/rps-api:latest
+          echo "Building Docker image with tags..."
+          docker build -t ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }} \
+                       -t ${{ env.DOCKER_IMAGE }}:latest \
+                       ./api
+      
+      - name: Push Docker image to Registry
+        run: |
+          echo "Pushing to Docker Hub..."
+          docker push ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+          docker push ${{ env.DOCKER_IMAGE }}:latest
+          
+      - name: Deployment Verification - Run Container
+        run: |
+          echo "🔍 Starting deployment verification..."
+          
+          # Run container in background
+          docker run -d --name test-api -p 8000:8000 \
+            -e MLFLOW_TRACKING_URI=./mlruns \
+            ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+          
+          # Wait for container to start
+          echo "Waiting for container to start..."
+          sleep 10
+          
+          # Check container is running
+          docker ps | grep test-api
+          
+          # Health check
+          echo "Running health check..."
+          for i in {1..5}; do
+            if curl -f http://localhost:8000/health 2>/dev/null; then
+              echo ""
+              echo "✅ Health check PASSED!"
+              break
+            else
+              echo "Attempt $i: Waiting for API to be ready..."
+              sleep 5
+            fi
+          done
+          
+          # Final verification
+          HEALTH_RESPONSE=$(curl -s http://localhost:8000/health || echo '{"status": "failed"}')
+          echo "Health response: $HEALTH_RESPONSE"
+          
+          # Cleanup
+          docker stop test-api
+          docker rm test-api
+          
+          # Check if health check passed
+          if echo "$HEALTH_RESPONSE" | grep -q "healthy\|unhealthy"; then
+            echo "✅ Deployment verification PASSED - Container started successfully"
+          else
+            echo "❌ Deployment verification FAILED - Container did not respond"
+            exit 1
+          fi
           
       - name: Deployment Summary
         run: |
-          echo "🚀 Deployment Complete!"
-          echo "Image: ${{ secrets.DOCKER_USERNAME }}/rps-api:latest"
+          echo "========================================"
+          echo "🚀 DEPLOYMENT COMPLETE!"
+          echo "========================================"
+          echo "Image: ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}"
+          echo "Latest: ${{ env.DOCKER_IMAGE }}:latest"
+          echo ""
+          echo "To run locally:"
+          echo "  docker pull ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}"
+          echo "  docker run -p 8000:8000 ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}"
+          echo "========================================"
